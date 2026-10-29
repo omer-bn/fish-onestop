@@ -1,0 +1,37 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>מדריך דגי מעבדת בלמקר</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>body{font-family:system-ui,Arial;margin:0;background:#f3f7fa;color:#123}header{background:#0b4f6c;color:#fff;padding:12px 16px}nav button{margin:4px;padding:6px 12px;border:0;border-radius:6px;cursor:pointer}nav button.on{background:#ffd166}
+main{padding:12px}.note{background:#fff3cd;padding:8px 12px;border-radius:6px;margin-bottom:10px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.card{background:#fff;border-radius:8px;padding:8px;box-shadow:0 1px 3px #0002}.card img{width:100%;height:130px;object-fit:cover;border-radius:6px;background:#dde}.lat{font-style:italic;color:#567;direction:ltr}
+table{border-collapse:collapse;width:100%;background:#fff}td,th{border:1px solid #ccd;padding:4px 6px;font-size:14px}#map{height:420px;margin-bottom:10px}
+#gate{position:fixed;inset:0;background:#0b4f6c;display:flex;align-items:center;justify-content:center;z-index:9999}#gate div{background:#fff;padding:24px;border-radius:10px;text-align:center}input{padding:6px}</style></head><body>
+<div id="gate"><div><h2>כניסה למדריך</h2><input id="pw" type="password" placeholder="סיסמה"> <button id="go">כניסה</button><p id="err" style="color:#c00"></p></div></div>
+<header><b>מדריך דגי מעבדת בלמקר</b> · Belmaker Lab Fish Guide
+<nav><button data-v="species" class="on">מינים</button><button data-v="sites">אתרים</button><button data-v="obs">תצפיות ואטלס</button></nav></header>
+<main><div class="note">גרסה סטטית לצפייה בלבד: הרשמה/התחברות, דיווח תצפיות חדשות, העלאת תמונות וזיהוי אוטומטי של דגים אינם זמינים בגרסה זו.</div><div id="view"></div></main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const HASH="__HASH__";
+async function sha(t){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+function unlock(){document.getElementById("gate").remove();start()}
+if(localStorage.getItem("fishGate")===HASH)unlock();
+async function tryPw(){if(await sha(document.getElementById("pw").value.trim())===HASH){localStorage.setItem("fishGate",HASH);unlock()}else document.getElementById("err").textContent="סיסמה שגויה"}
+document.getElementById("go").onclick=tryPw;document.getElementById("pw").onkeydown=e=>{if(e.key==="Enter")tryPw()};
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let D={};
+async function start(){const [c,s,o]=await Promise.all(["catalog","sites","observations"].map(n=>fetch("data/"+n+".json").then(r=>r.json())));D={c,s:s.sites,o};
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button").forEach(x=>x.classList.remove("on"));b.classList.add("on");show(b.dataset.v)});show("species")}
+function show(v){const el=document.getElementById("view");
+if(v==="species"){el.innerHTML='<input id="q" placeholder="חיפוש (עברית/English/Latin)" style="width:260px"> <select id="sea"><option value="">כל הימים</option><option value="red">ים סוף</option><option value="mediterranean">ים תיכון</option></select> <span id="n"></span><div class="grid" id="g"></div>';
+const draw=()=>{const q=document.getElementById("q").value.toLowerCase(),sea=document.getElementById("sea").value;
+const L=D.c.species.filter(s=>(!sea||s.sea===sea)&&[s.hebrew,s.english,s.latin,s.family&&s.family.hebrew].join(" ").toLowerCase().includes(q));
+document.getElementById("n").textContent=L.length+" מינים";
+document.getElementById("g").innerHTML=L.map(s=>`<div class="card">${s.image?`<img loading="lazy" src="${esc(s.image)}">`:'<div style="height:130px;background:#dde;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#678">אין תמונה</div>'}<b>${esc(s.hebrew)}</b><div>${esc(s.english)}</div><div class="lat">${esc(s.latin)}</div><small>${esc(s.seaHebrew)} · ${esc(s.family&&s.family.hebrew)}</small></div>`).join("")};
+document.getElementById("q").oninput=draw;document.getElementById("sea").onchange=draw;draw()}
+if(v==="sites"){el.innerHTML='<div id="map"></div><table><tr><th>אתר</th><th>Site</th><th>ים</th></tr>'+D.s.map(s=>`<tr><td>${esc(s.hebrew)}</td><td>${esc(s.english)}</td><td>${s.sea==="red"?"ים סוף":"ים תיכון"}</td></tr>`).join("")+'</table>';
+const m=L.map("map").setView([31,34.8],7);L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OpenStreetMap"}).addTo(m);D.s.forEach(s=>L.marker([s.lat,s.lng]).addTo(m).bindPopup(esc(s.hebrew)))}
+if(v==="obs"){const S=D.o.sightings;el.innerHTML=`<div id="map"></div><h3>${S.length} תצפיות · ${D.o.dives.length} צלילות</h3><table><tr><th>תאריך</th><th>מין</th><th>אתר</th><th>כמות</th><th>עומק</th><th>צופה</th></tr>`+S.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(r.hebrew)} <span class="lat">${esc(r.latin)}</span></td><td>${esc(r.siteHebrew)}</td><td>${esc(r.count)}</td><td>${esc(r.depthM)}</td><td>${esc(r.observer)}</td></tr>`).join("")+"</table>";
+const m=L.map("map").setView([31,34.8],7);L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OpenStreetMap"}).addTo(m);
+const g={};S.forEach(r=>{(g[r.siteId]=g[r.siteId]||{r,l:[]}).l.push(r)});Object.values(g).forEach(({r,l})=>L.circleMarker([r.lat,r.lng],{radius:6+Math.min(l.length,20)}).addTo(m).bindPopup(`<b>${esc(r.siteHebrew)}</b><br>`+l.map(x=>esc(x.hebrew)+" ×"+esc(x.count)).join("<br>")))}}
+</script></body></html>

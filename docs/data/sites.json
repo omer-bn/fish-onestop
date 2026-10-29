@@ -1,0 +1,164 @@
+{
+  "sites": [
+    {
+      "id": "eilat-north",
+      "sea": "red",
+      "hebrew": "חוף הצפון, אילת",
+      "english": "Eilat North Beach",
+      "lat": 29.5477,
+      "lng": 34.9538
+    },
+    {
+      "id": "dolphin-reef",
+      "sea": "red",
+      "hebrew": "שונית הדולפינים",
+      "english": "Dolphin Reef",
+      "lat": 29.5275,
+      "lng": 34.938
+    },
+    {
+      "id": "coral-beach",
+      "sea": "red",
+      "hebrew": "חוף אלמוג",
+      "english": "Coral Beach",
+      "lat": 29.5112,
+      "lng": 34.9265
+    },
+    {
+      "id": "caves",
+      "sea": "red",
+      "hebrew": "המערות",
+      "english": "The Caves",
+      "lat": 29.5138,
+      "lng": 34.9288
+    },
+    {
+      "id": "japanese-gardens",
+      "sea": "red",
+      "hebrew": "הגנים היפניים",
+      "english": "Japanese Gardens",
+      "lat": 29.5064,
+      "lng": 34.9218
+    },
+    {
+      "id": "observatory",
+      "sea": "red",
+      "hebrew": "המצפה התת-ימי",
+      "english": "Underwater Observatory",
+      "lat": 29.5074,
+      "lng": 34.9186
+    },
+    {
+      "id": "iui",
+      "sea": "red",
+      "hebrew": "המכון הבינאוניברסיטאי",
+      "english": "IUI / Interuniversity Institute",
+      "lat": 29.5016,
+      "lng": 34.9179
+    },
+    {
+      "id": "taba",
+      "sea": "red",
+      "hebrew": "גבול טאבה",
+      "english": "Taba border",
+      "lat": 29.4912,
+      "lng": 34.9055
+    },
+    {
+      "id": "rosh-hanikra",
+      "sea": "mediterranean",
+      "hebrew": "ראש הנקרה",
+      "english": "Rosh Hanikra",
+      "lat": 33.088,
+      "lng": 35.1045
+    },
+    {
+      "id": "achziv",
+      "sea": "mediterranean",
+      "hebrew": "אכזיב",
+      "english": "Achziv",
+      "lat": 33.0485,
+      "lng": 35.102
+    },
+    {
+      "id": "bat-galim",
+      "sea": "mediterranean",
+      "hebrew": "בת גלים, חיפה",
+      "english": "Bat Galim, Haifa",
+      "lat": 32.8322,
+      "lng": 34.971
+    },
+    {
+      "id": "caesarea",
+      "sea": "mediterranean",
+      "hebrew": "קיסריה",
+      "english": "Caesarea",
+      "lat": 32.5006,
+      "lng": 34.8915
+    },
+    {
+      "id": "sdot-yam",
+      "sea": "mediterranean",
+      "hebrew": "שדות ים",
+      "english": "Sdot Yam",
+      "lat": 32.492,
+      "lng": 34.889
+    },
+    {
+      "id": "michmoret",
+      "sea": "mediterranean",
+      "hebrew": "מכמורת",
+      "english": "Michmoret",
+      "lat": 32.4065,
+      "lng": 34.8675
+    },
+    {
+      "id": "herzliya",
+      "sea": "mediterranean",
+      "hebrew": "הרצליה",
+      "english": "Herzliya",
+      "lat": 32.1648,
+      "lng": 34.7925
+    },
+    {
+      "id": "gordon",
+      "sea": "mediterranean",
+      "hebrew": "חוף גורדון, תל אביב",
+      "english": "Gordon Beach, Tel Aviv",
+      "lat": 32.0835,
+      "lng": 34.7635
+    },
+    {
+      "id": "jaffa",
+      "sea": "mediterranean",
+      "hebrew": "יפו",
+      "english": "Jaffa",
+      "lat": 32.0528,
+      "lng": 34.7488
+    },
+    {
+      "id": "palmachim",
+      "sea": "mediterranean",
+      "hebrew": "פלמחים",
+      "english": "Palmachim",
+      "lat": 31.933,
+      "lng": 34.698
+    },
+    {
+      "id": "ashdod",
+      "sea": "mediterranean",
+      "hebrew": "אשדוד",
+      "english": "Ashdod",
+      "lat": 31.804,
+      "lng": 34.628
+    },
+    {
+      "id": "ashkelon",
+      "sea": "mediterranean",
+      "hebrew": "אשקלון",
+      "english": "Ashkelon",
+      "lat": 31.664,
+      "lng": 34.5475
+    }
+  ]
+}
