@@ -1,21 +1,39 @@
 <!doctype html><html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Belmaker Lab Fish Guide</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<style>body{font-family:system-ui,Arial;margin:0;background:#f3f7fa;color:#123}header{background:#0b4f6c;color:#fff;padding:12px 16px}nav button{margin:4px;padding:6px 12px;border:0;border-radius:6px;cursor:pointer}nav button.on{background:#ffd166}
-main{padding:12px}.note{background:#fff3cd;padding:8px 12px;border-radius:6px;margin-bottom:10px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
-.card{background:#fff;border-radius:8px;padding:8px;box-shadow:0 1px 3px #0002}.card img{width:100%;height:130px;object-fit:cover;border-radius:6px;background:#dde}.lat{font-style:italic;color:#567;direction:ltr}
-table{border-collapse:collapse;width:100%;background:#fff}td,th{border:1px solid #ccd;padding:4px 6px;font-size:14px}#map{height:420px;margin-bottom:10px}
-#gate{position:fixed;inset:0;background:#0b4f6c;display:flex;align-items:center;justify-content:center;z-index:9999}#gate div{background:#fff;padding:24px;border-radius:10px;text-align:center}input{padding:6px}</style></head><body>
+<style>
+:root{--deep:#06314a;--sea:#0b6e99;--foam:#e8f4f8;--sun:#ffd166;--ink:#12303f}
+*{box-sizing:border-box}body{font-family:"Segoe UI",system-ui,Arial,sans-serif;margin:0;background:var(--foam);color:var(--ink)}
+header{background:linear-gradient(90deg,var(--deep),var(--sea));color:#fff;padding:12px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:12px;position:sticky;top:0;z-index:1000;box-shadow:0 2px 8px #0003}
+header b{font-size:18px;margin-inline-end:auto}nav{display:flex;flex-wrap:wrap;gap:4px}
+nav button,#lang{padding:7px 14px;border:0;border-radius:20px;cursor:pointer;background:#ffffff22;color:#fff;font-size:14px}nav button.on{background:var(--sun);color:var(--deep);font-weight:600}#lang{border:1px solid #fff6;background:none}
+main{padding:20px;max-width:1200px;margin:auto}.note{background:#fff8e1;border-inline-start:4px solid var(--sun);padding:10px 14px;border-radius:6px;margin-bottom:16px;font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.card{background:#fff;border-radius:12px;padding:10px;box-shadow:0 2px 6px #0b4f6c1f;transition:transform .15s,box-shadow .15s}.card:hover{transform:translateY(-3px);box-shadow:0 6px 16px #0b4f6c33}
+.card img{width:100%;height:140px;object-fit:cover;border-radius:8px;background:#dde}.lat{font-style:italic;color:#567;direction:ltr}.card small{color:#678}
+.divider{grid-column:1/-1;margin:18px 0 4px;padding-top:12px;border-top:2px dashed #b9d4df;color:#567;font-weight:600}
+table{border-collapse:collapse;width:100%;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 6px #0b4f6c1f}td,th{padding:8px 10px;font-size:14px;border-bottom:1px solid #e3edf1;text-align:start}th{background:#d6eaf2}
+#map{height:420px;margin-bottom:16px;border-radius:12px;box-shadow:0 2px 6px #0b4f6c33}
+input,select{padding:8px 12px;border:1px solid #b9d4df;border-radius:20px;font-size:14px}
+.hero{background:linear-gradient(160deg,var(--deep),var(--sea) 60%,#2fa3c7);color:#fff;border-radius:18px;padding:48px 32px;position:relative;overflow:hidden}
+.hero h1{font-size:38px;margin:0 0 10px}.hero p{font-size:18px;max-width:640px;line-height:1.6;opacity:.95}.hero:after{content:"🐠 🐟 🐡";position:absolute;inset-inline-end:28px;bottom:14px;font-size:48px;opacity:.35}
+.cta{margin-top:16px;padding:11px 22px;border:0;border-radius:24px;background:var(--sun);color:var(--deep);font-weight:700;font-size:16px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin:22px 0}.stat{background:#fff;border-radius:14px;padding:18px;text-align:center;box-shadow:0 2px 6px #0b4f6c1f}.stat b{display:block;font-size:32px;color:var(--sea)}
+.feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.feat .card{padding:20px;cursor:pointer}.feat h3{margin:6px 0}.feat .ic{font-size:30px}
+.src{margin-top:24px;font-size:14px;color:#456;line-height:1.6}
+#gate{position:fixed;inset:0;background:linear-gradient(160deg,var(--deep),var(--sea));display:flex;align-items:center;justify-content:center;z-index:9999}#gate div{background:#fff;padding:32px;border-radius:16px;text-align:center;box-shadow:0 10px 30px #0005}
+button#go{padding:8px 18px;border:0;border-radius:20px;background:var(--sea);color:#fff;cursor:pointer}
+</style></head><body>
 <div id="gate"><div><h2 data-t="gateT"></h2><input id="pw" type="password"> <button id="go" data-t="enter"></button><p id="err" style="color:#c00"></p></div></div>
 <header><b data-t="title"></b> <button id="lang" style="float:inline-end"></button>
-<nav><button data-v="species" class="on" data-t="species"></button><button data-v="sites" data-t="sites"></button><button data-v="obs" data-t="obs"></button></nav></header>
-<main><div class="note" data-t="note"></div><div id="view"></div></main>
+<nav><button data-v="home" class="on" data-t="home"></button><button data-v="species" data-t="species"></button><button data-v="sites" data-t="sites"></button><button data-v="obs" data-t="obs"></button></nav></header>
+<main><div class="note" id="note" data-t="note"></div><div id="view"></div></main>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const HASH="01f3b57c1a3cadf3cb2c516015e7ed7a1191f884771ff5d7cab13499b28587e5";
-const T={en:{gateT:"Enter the guide",pw:"Password",enter:"Enter",bad:"Wrong password",title:"Belmaker Lab Fish Guide",species:"Species",sites:"Sites",obs:"Observations & atlas",note:"Static view-only version: sign-up/login, new observation reports, photo uploads and automatic fish ID are not available here.",search:"Search (English/Hebrew/Latin)",allSeas:"All seas",red:"Red Sea",med:"Mediterranean",nSp:"species",noImg:"No image",site:"Site",sea:"Sea",nObs:"observations",nDives:"dives",date:"Date",sp:"Species",cnt:"Count",depth:"Depth",observer:"Observer",other:"עברית"},
-he:{gateT:"כניסה למדריך",pw:"סיסמה",enter:"כניסה",bad:"סיסמה שגויה",title:"מדריך דגי מעבדת בלמקר",species:"מינים",sites:"אתרים",obs:"תצפיות ואטלס",note:"גרסה סטטית לצפייה בלבד: הרשמה/התחברות, דיווח תצפיות חדשות, העלאת תמונות וזיהוי אוטומטי של דגים אינם זמינים בגרסה זו.",search:"חיפוש (עברית/English/Latin)",allSeas:"כל הימים",red:"ים סוף",med:"ים תיכון",nSp:"מינים",noImg:"אין תמונה",site:"אתר",sea:"ים",nObs:"תצפיות",nDives:"צלילות",date:"תאריך",sp:"מין",cnt:"כמות",depth:"עומק",observer:"צופה",other:"English"}};
-let LANG=localStorage.getItem("fishLang")||"en",CUR="species";const t=k=>T[LANG][k];
+const T={en:{home:"Home",heroT:"Fish of Israel's seas, at a glance",heroP:"A field identification guide from the Belmaker Lab for divers, students and researchers. It brings together the lab's Red Sea and Mediterranean fish ID guides, the survey sites, and dive observations in one place.",start:"Explore species",fSp:"Browse and search every species by English, Hebrew or Latin name, filtered by sea.",fSi:"See the lab's survey sites on an interactive map.",fOb:"View recorded sightings and dives on the atlas map.",sPh:"with photos",srcT:"Sources",noImgSec:"Species without a photo yet",gateT:"Enter the guide",pw:"Password",enter:"Enter",bad:"Wrong password",title:"Belmaker Lab Fish Guide",species:"Species",sites:"Sites",obs:"Observations & atlas",note:"Static view-only version: sign-up/login, new observation reports, photo uploads and automatic fish ID are not available here.",search:"Search (English/Hebrew/Latin)",allSeas:"All seas",red:"Red Sea",med:"Mediterranean",nSp:"species",noImg:"No image",site:"Site",sea:"Sea",nObs:"observations",nDives:"dives",date:"Date",sp:"Species",cnt:"Count",depth:"Depth",observer:"Observer",other:"עברית"},
+he:{home:"בית",heroT:"דגי ימי ישראל, במבט אחד",heroP:"מדריך זיהוי שטח של מעבדת בלמקר לצוללים, סטודנטים וחוקרים. הוא מאגד במקום אחד את מדריכי הזיהוי של המעבדה לים סוף ולים התיכון, את אתרי הסקר ואת תצפיות הצלילה.",start:"לגלות מינים",fSp:"עיון וחיפוש בכל המינים לפי שם עברי, אנגלי או לטיני, עם סינון לפי ים.",fSi:"אתרי הסקר של המעבדה על מפה אינטראקטיבית.",fOb:"תצפיות וצלילות מתועדות על מפת האטלס.",sPh:"עם תמונות",srcT:"מקורות",noImgSec:"מינים שעדיין אין להם תמונה",gateT:"כניסה למדריך",pw:"סיסמה",enter:"כניסה",bad:"סיסמה שגויה",title:"מדריך דגי מעבדת בלמקר",species:"מינים",sites:"אתרים",obs:"תצפיות ואטלס",note:"גרסה סטטית לצפייה בלבד: הרשמה/התחברות, דיווח תצפיות חדשות, העלאת תמונות וזיהוי אוטומטי של דגים אינם זמינים בגרסה זו.",search:"חיפוש (עברית/English/Latin)",allSeas:"כל הימים",red:"ים סוף",med:"ים תיכון",nSp:"מינים",noImg:"אין תמונה",site:"אתר",sea:"ים",nObs:"תצפיות",nDives:"צלילות",date:"תאריך",sp:"מין",cnt:"כמות",depth:"עומק",observer:"צופה",other:"English"}};
+let LANG=localStorage.getItem("fishLang")||"en",CUR="home";const t=k=>T[LANG][k];
 const nm=(o,k="")=>LANG==="en"?(o[k+(k?"English":"english")]||o[k+(k?"Hebrew":"hebrew")]||o.latin||""):(o[k+(k?"Hebrew":"hebrew")]||o[k+(k?"English":"english")]||o.latin||"");
 const seaN=s=>s==="red"?t("red"):t("med");
 function applyLang(){const h=document.documentElement;h.lang=LANG;h.dir=LANG==="he"?"rtl":"ltr";document.title=t("title");document.querySelectorAll("[data-t]").forEach(e=>e.textContent=t(e.dataset.t));const pw=document.getElementById("pw");if(pw)pw.placeholder=t("pw");document.getElementById("lang").textContent=t("other")}
@@ -29,14 +47,19 @@ if(document.getElementById("go")){document.getElementById("go").onclick=tryPw;do
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 let D={};
 async function start(){const [c,s,o]=await Promise.all(["catalog","sites","observations"].map(n=>fetch("data/"+n+".json").then(r=>r.json())));D={c,s:s.sites,o};
-document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button").forEach(x=>x.classList.remove("on"));b.classList.add("on");show(b.dataset.v)});show("species")}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button").forEach(x=>x.classList.remove("on"));b.classList.add("on");show(b.dataset.v)});show("home")}
+function go(v){document.querySelector(`nav button[data-v="${v}"]`).click()}
 function map(){const m=L.map("map").setView([31,34.8],7);L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OpenStreetMap"}).addTo(m);return m}
-function show(v){CUR=v;const el=document.getElementById("view");
+function show(v){CUR=v;const el=document.getElementById("view");document.getElementById("note").style.display=v==="home"?"none":"";
+if(v==="home"){const sp=D.c.species,src=D.c.sources;el.innerHTML=`<section class="hero"><h1>${t("heroT")}</h1><p>${t("heroP")}</p><button class="cta" onclick="go('species')">${t("start")} →</button></section>
+<div class="stats"><div class="stat"><b>${sp.length}</b>${t("nSp")}</div><div class="stat"><b>${sp.filter(s=>s.image).length}</b>${t("sPh")}</div><div class="stat"><b>${D.s.length}</b>${t("sites")}</div><div class="stat"><b>${D.o.sightings.length}</b>${t("nObs")}</div></div>
+<div class="feat"><div class="card" onclick="go('species')"><div class="ic">🐠</div><h3>${t("species")}</h3>${t("fSp")}</div><div class="card" onclick="go('sites')"><div class="ic">📍</div><h3>${t("sites")}</h3>${t("fSi")}</div><div class="card" onclick="go('obs')"><div class="ic">🤿</div><h3>${t("obs")}</h3>${t("fOb")}</div></div>
+<div class="src"><b>${t("srcT")}</b><br>${src.slides.map(esc).join("<br>")}<br>${esc(src.names)}<br>${esc(src.photographs)}</div>`;return}
 if(v==="species"){el.innerHTML=`<input id="q" placeholder="${t("search")}" style="width:260px"> <select id="sea"><option value="">${t("allSeas")}</option><option value="red">${t("red")}</option><option value="mediterranean">${t("med")}</option></select> <span id="n"></span><div class="grid" id="g"></div>`;
 const draw=()=>{const q=document.getElementById("q").value.toLowerCase(),sea=document.getElementById("sea").value;
-const R=D.c.species.filter(s=>(!sea||s.sea===sea)&&[s.hebrew,s.english,s.latin,s.family&&s.family.hebrew,s.family&&s.family.english].join(" ").toLowerCase().includes(q));
+const R=D.c.species.slice().sort((a,b)=>(!a.image)-(!b.image)).filter(s=>(!sea||s.sea===sea)&&[s.hebrew,s.english,s.latin,s.family&&s.family.hebrew,s.family&&s.family.english].join(" ").toLowerCase().includes(q));
 document.getElementById("n").textContent=R.length+" "+t("nSp");
-document.getElementById("g").innerHTML=R.map(s=>{const a=LANG==="en"?s.english:s.hebrew,b=LANG==="en"?s.hebrew:s.english;return `<div class="card">${s.image?`<img loading="lazy" src="${esc(s.image)}">`:`<div style="height:130px;background:#dde;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#678">${t("noImg")}</div>`}<b>${esc(a||s.latin)}</b><div>${esc(a?b:(b||""))}</div><div class="lat">${esc(s.latin)}</div><small>${esc(seaN(s.sea))} · ${esc(s.family?nm(s.family):"")}</small></div>`}).join("")};
+const fi=R.findIndex(s=>!s.image);document.getElementById("g").innerHTML=R.map((s,i)=>{const dv=i===fi&&i>0?`<div class="divider">${t("noImgSec")}</div>`:"";const a=LANG==="en"?s.english:s.hebrew,b=LANG==="en"?s.hebrew:s.english;return dv+`<div class="card">${s.image?`<img loading="lazy" src="${esc(s.image)}">`:`<div style="height:130px;background:#dde;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#678">${t("noImg")}</div>`}<b>${esc(a||s.latin)}</b><div>${esc(a?b:(b||""))}</div><div class="lat">${esc(s.latin)}</div><small>${esc(seaN(s.sea))} · ${esc(s.family?nm(s.family):"")}</small></div>`}).join("")};
 document.getElementById("q").oninput=draw;document.getElementById("sea").onchange=draw;draw()}
 if(v==="sites"){el.innerHTML=`<div id="map"></div><table><tr><th>${t("site")}</th><th>${LANG==="en"?"עברית":"Site"}</th><th>${t("sea")}</th></tr>`+D.s.map(s=>`<tr><td>${esc(nm(s))}</td><td>${esc(LANG==="en"?s.hebrew:s.english)}</td><td>${seaN(s.sea)}</td></tr>`).join("")+'</table>';
 const m=map();D.s.forEach(s=>L.marker([s.lat,s.lng]).addTo(m).bindPopup(esc(nm(s))))}
