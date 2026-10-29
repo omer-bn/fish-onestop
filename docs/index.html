@@ -12,7 +12,7 @@ table{border-collapse:collapse;width:100%;background:#fff}td,th{border:1px solid
 <main><div class="note">גרסה סטטית לצפייה בלבד: הרשמה/התחברות, דיווח תצפיות חדשות, העלאת תמונות וזיהוי אוטומטי של דגים אינם זמינים בגרסה זו.</div><div id="view"></div></main>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const HASH="fab5f72dd33e1adfd5edc6f1c4c40857577c4dd55658c4a8880155168ab9a70b";
+const HASH="01f3b57c1a3cadf3cb2c516015e7ed7a1191f884771ff5d7cab13499b28587e5";
 async function sha(t){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
 function unlock(){document.getElementById("gate").remove();start()}
 if(localStorage.getItem("fishGate")===HASH)unlock();
