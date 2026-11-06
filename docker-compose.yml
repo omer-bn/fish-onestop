@@ -1,0 +1,24 @@
+# Local Postgres for fish-onestop.
+# The password below is a throwaway default for a database on your machine.
+# Use a different password anywhere else, and keep that value out of git.
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fish}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fish}
+      POSTGRES_DB: ${POSTGRES_DB:-fish_onestop}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - fish_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fish} -d ${POSTGRES_DB:-fish_onestop}"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+
+volumes:
+  fish_pg_data:
