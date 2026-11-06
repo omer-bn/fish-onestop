@@ -161,14 +161,10 @@ def start_session(conn: psycopg.Connection, user_id: Any, settings: Any) -> str:
     return token
 
 
-def require_user(
-    request: Request,
-    conn: psycopg.Connection = Depends(get_conn),
-    fish_session: Annotated[str | None, Cookie(alias=COOKIE_NAME)] = None,
-) -> dict[str, Any]:
+def _session_user(conn: psycopg.Connection, fish_session: str | None) -> dict[str, Any] | None:
     if not fish_session:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    row = conn.execute(
+        return None
+    return conn.execute(
         f"""
         SELECT {PUBLIC_COLS}
         FROM sessions s
@@ -177,6 +173,22 @@ def require_user(
         """,
         (hash_token(fish_session),),
     ).fetchone()
+
+
+def optional_user(
+    conn: psycopg.Connection = Depends(get_conn),
+    fish_session: Annotated[str | None, Cookie(alias=COOKIE_NAME)] = None,
+) -> dict[str, Any] | None:
+    """The signed-in member, or None when the cookie is missing or expired."""
+    return _session_user(conn, fish_session)
+
+
+def require_user(
+    request: Request,
+    conn: psycopg.Connection = Depends(get_conn),
+    fish_session: Annotated[str | None, Cookie(alias=COOKIE_NAME)] = None,
+) -> dict[str, Any]:
+    row = _session_user(conn, fish_session)
     if row is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return row

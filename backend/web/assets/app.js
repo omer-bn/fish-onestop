@@ -64,6 +64,29 @@ const T = {
     mapTitle: "My map",
     mapLead: "Sites and species you have recorded.",
     emptyMap: "Your map fills in after the first report.",
+    atlas: "Atlas",
+    atlasTitle: "Species atlas",
+    atlasLead: "Search the catalog, then open where and when a fish was seen.",
+    atlasEmpty: "No species match that search.",
+    findSpecies: "Species",
+    history: "History",
+    historyLead: "Where and when this species was recorded. Newest first.",
+    emptyHistory: "No sightings recorded for this species yet.",
+    reportSpecies: "Report this species",
+    lastSeen: "Last seen",
+    reportedBy: "Reported by",
+    mineBadge: "Mine",
+    atlasBadge: "Atlas",
+    diveLink: "Dive",
+    diveDetails: "Dive",
+    editDive: "Edit dive",
+    close: "Close",
+    loadMore: "Older sightings",
+    minShort: "min",
+    allSeas: "All seas",
+    redSea: "Red Sea",
+    medSea: "Mediterranean",
+    clearSpecies: "Clear species",
     speciesStat: "Species",
     sitesStat: "Sites",
     sightingsStat: "Sightings",
@@ -153,6 +176,29 @@ const T = {
     mapTitle: "המפה שלי",
     mapLead: "אתרים ומינים שדיווחת עליהם.",
     emptyMap: "המפה מתמלאת אחרי הדיווח הראשון.",
+    atlas: "אטלס",
+    atlasTitle: "אטלס המינים",
+    atlasLead: "חיפוש בקטלוג, ואז איפה ומתי הדג נצפה.",
+    atlasEmpty: "אין מינים שתואמים לחיפוש.",
+    findSpecies: "מין",
+    history: "היסטוריה",
+    historyLead: "איפה ומתי המין הזה תועד. מהחדש לישן.",
+    emptyHistory: "עדיין אין תצפיות למין הזה.",
+    reportSpecies: "דיווח על המין הזה",
+    lastSeen: "נצפה לאחרונה",
+    reportedBy: "דיווח",
+    mineBadge: "שלי",
+    atlasBadge: "אטלס",
+    diveLink: "צלילה",
+    diveDetails: "צלילה",
+    editDive: "עריכת הצלילה",
+    close: "סגירה",
+    loadMore: "תצפיות ישנות יותר",
+    minShort: "דק׳",
+    allSeas: "כל הימים",
+    redSea: "ים סוף",
+    medSea: "ים תיכון",
+    clearSpecies: "ניקוי המין",
     speciesStat: "מינים",
     sitesStat: "אתרים",
     sightingsStat: "תצפיות",
@@ -200,6 +246,11 @@ const state = {
   sites: [],
   observations: { dives: [], sightings: [] },
   mapData: null,
+  atlasQuery: "",
+  atlasSea: "",
+  atlasHits: [],
+  history: null,
+  diveSheet: null,
   selectedSpecies: null,
   speciesHits: [],
   editing: null,
@@ -211,10 +262,13 @@ const state = {
   draft: draft(),
 };
 
+const TABS = ["report", "mine", "map", "atlas", "account"];
+
 let mapObj = null;
 let mapToken = 0;
 let searchTimer = 0;
 let searchSeq = 0;
+let atlasSeq = 0;
 
 function t(key) {
   return (T[state.lang] && T[state.lang][key]) || T.en[key] || key;
@@ -272,6 +326,34 @@ function fmtDate(iso) {
     month: "short",
     year: "numeric",
   }).format(new Date(day));
+}
+
+function fmtTime(value) {
+  if (!value) return "";
+  const match = String(value).match(/(\d{2}):(\d{2})/);
+  return match ? `${match[1]}:${match[2]}` : "";
+}
+
+function whenOf(row) {
+  const date = fmtDate(row.observed_on || row.dive_date);
+  const time = fmtTime(row.start_time);
+  return [date, time].filter(Boolean).join(" · ");
+}
+
+function methodLabel(value) {
+  if (!value) return "";
+  const label = t(value);
+  return label === value ? value : label;
+}
+
+function seaLabel(species) {
+  if (!species) return "";
+  if (state.lang === "he") return species.sea_hebrew || (species.sea === "mediterranean" ? t("medSea") : species.sea === "red" ? t("redSea") : "");
+  return species.sea_english || (species.sea === "mediterranean" ? t("medSea") : species.sea === "red" ? t("redSea") : "");
+}
+
+function safeId(value) {
+  return String(value || "").replace(/[^A-Za-z0-9._-]/g, "");
 }
 
 function errorText(data) {
@@ -604,15 +686,24 @@ function paintSelected(node) {
         el("strong", { text: nameOf(state.selectedSpecies) }),
         el("div", { class: "muted", text: state.selectedSpecies.latin || "" }),
       ]),
-      el("button", {
-        type: "button",
-        class: "btn quiet",
-        text: "×",
-        onclick: () => {
-          state.selectedSpecies = null;
-          paintSelected(node);
-        },
-      }),
+      el("div", { class: "selected-actions" }, [
+        el("button", {
+          type: "button",
+          class: "btn quiet",
+          text: t("history"),
+          onclick: () => openHistory(state.selectedSpecies.id),
+        }),
+        el("button", {
+          type: "button",
+          class: "btn quiet",
+          text: "×",
+          "aria-label": t("clearSpecies"),
+          onclick: () => {
+            state.selectedSpecies = null;
+            paintSelected(node);
+          },
+        }),
+      ]),
     ])
   );
 }
@@ -635,7 +726,8 @@ async function loadSpecies(query, hits) {
     if (seq !== searchSeq) return;
     hits.replaceChildren();
     (data.items || []).forEach((species) => {
-      const button = el("button", { type: "button" });
+      const row = el("div", { class: "hit-row" });
+      const button = el("button", { type: "button", class: "hit-main" });
       button.append(el("strong", { text: nameOf(species) }), el("small", { text: species.latin || "" }));
       button.addEventListener("click", () => {
         state.selectedSpecies = species;
@@ -645,7 +737,16 @@ async function loadSpecies(query, hits) {
         const box = document.getElementById("species-q");
         if (box) box.value = "";
       });
-      hits.append(button);
+      row.append(
+        button,
+        el("button", {
+          type: "button",
+          class: "hit-side",
+          text: t("history"),
+          onclick: () => openHistory(species.id),
+        })
+      );
+      hits.append(row);
     });
   } catch (err) {
     if (seq === searchSeq && err.status !== 401) hits.textContent = err.message;
@@ -705,7 +806,12 @@ function renderSighting(sighting) {
   const card = el("article", { class: "obs" });
   card.append(photoNode(sighting.media));
   const body = el("div");
-  body.append(el("h3", { text: nameOf(sighting) }));
+  body.append(el("button", {
+    type: "button",
+    class: "linkish title-link",
+    text: nameOf(sighting),
+    onclick: () => openHistory(sighting.species_id),
+  }));
   const bits = [fmtDate(sighting.observed_on), nameOf(sighting, "site")];
   if (sighting.count != null) bits.push(`×${sighting.count}`);
   if (sighting.depth_m != null) bits.push(`${sighting.depth_m} m`);
@@ -780,12 +886,13 @@ function renderMine(screen) {
 
 function openEdit(type, record) {
   state.editing = { type, record };
-  state.tab = "mine";
+  state.diveSheet = null;
+  if (!state.history) state.tab = "mine";
   render();
 }
 
-function askDelete(message, action) {
-  state.confirm = { message, action };
+function askDelete(message, action, after) {
+  state.confirm = { message, action, after: after || "mine" };
   render();
 }
 
@@ -866,7 +973,8 @@ function renderEditor(screen) {
       await api(path, { method: "PATCH", body: payload });
       toast(t("saved"));
       state.editing = null;
-      await showTab("mine");
+      if (state.history) await openHistory(state.history.speciesId);
+      else await showTab("mine");
     } catch (err) {
       if (err.status === 401) return;
       error.hidden = false;
@@ -924,7 +1032,12 @@ function renderMap(screen) {
     });
   });
   seen.forEach((species) => {
-    chips.append(el("span", { class: "pill", text: `${nameOf(species)} ×${species.count_sum}` }));
+    chips.append(el("button", {
+      type: "button",
+      class: "pill",
+      text: `${nameOf(species)} ×${species.count_sum}`,
+      onclick: () => openHistory(species.id),
+    }));
   });
   side.append(chips);
   (data.sites || []).filter((site) => site.lat == null).forEach((site) => {
@@ -950,7 +1063,10 @@ function renderMap(screen) {
         fillColor: "#ffd166",
         fillOpacity: 0.95,
       });
-      const lines = (site.species || []).map((species) => `${escapeHtml(nameOf(species))} ×${species.count_sum}`).join("<br>");
+      const lines = (site.species || []).map((species) => {
+        const id = safeId(species.id);
+        return `<button type="button" class="popup-link" onclick="fishOpenHistory('${id}')">${escapeHtml(nameOf(species))} ×${escapeHtml(species.count_sum)}</button>`;
+      }).join("");
       marker.bindPopup(`<b>${escapeHtml(nameOf(site, "site"))}</b><br>${lines}`);
       marker.addTo(mapObj);
       bounds.push([site.lat, site.lng]);
@@ -1009,10 +1125,13 @@ function renderConfirm() {
     text: t("delete"),
     onclick: async () => {
       try {
+        const after = state.confirm.after || "mine";
+        const speciesId = state.history && state.history.speciesId;
         await state.confirm.action();
         state.confirm = null;
         state.editing = null;
-        await showTab("mine");
+        if (after === "history" && speciesId) await openHistory(speciesId);
+        else await showTab(after);
       } catch (err) {
         if (err.status !== 401) toast(err.message);
       }
@@ -1044,18 +1163,23 @@ function render() {
   screen.replaceChildren();
   if (!state.me) renderAuth(screen);
   else if (state.editing) renderEditor(screen);
+  else if (state.history) renderHistory(screen);
   else if (state.tab === "mine") renderMine(screen);
   else if (state.tab === "map") renderMap(screen);
+  else if (state.tab === "atlas") renderAtlas(screen);
   else if (state.tab === "account") renderAccount(screen);
   else renderReport(screen);
   renderConfirm();
+  renderDiveSheet();
 }
 
 async function showTab(tab) {
-  state.tab = ["report", "mine", "map", "account"].includes(tab) ? tab : "report";
+  state.tab = TABS.includes(tab) ? tab : "report";
   history.replaceState(null, "", `#${state.tab}`);
   state.editing = null;
   state.confirm = null;
+  state.history = null;
+  state.diveSheet = null;
   if (!state.me) {
     render();
     return;
@@ -1063,12 +1187,310 @@ async function showTab(tab) {
   try {
     if (state.tab === "report" || state.tab === "mine") state.observations = await api("/me/observations");
     if (state.tab === "map") state.mapData = await api("/me/map");
+    if (state.tab === "atlas") await loadAtlas();
     if (!state.sites.length) state.sites = (await api("/sites")).items;
   } catch (err) {
     if (err.status === 401) return;
     toast(err.message);
   }
   render();
+}
+
+async function loadAtlas() {
+  const seq = ++atlasSeq;
+  const params = new URLSearchParams({ limit: "24" });
+  if (state.atlasQuery) params.set("q", state.atlasQuery);
+  if (state.atlasSea) params.set("sea", state.atlasSea);
+  const data = await api(`/species?${params}`);
+  if (seq !== atlasSeq) return;
+  state.atlasHits = data.items || [];
+}
+
+function paintAtlas(hits) {
+  if (!hits) return;
+  hits.replaceChildren();
+  if (!state.atlasHits.length) {
+    hits.append(el("p", { class: "hint", text: t("atlasEmpty") }));
+    return;
+  }
+  state.atlasHits.forEach((species) => {
+    const button = el("button", { type: "button", class: "atlas-card" });
+    if (species.image_url) button.append(el("img", { src: species.image_url, alt: "" }));
+    else button.append(el("div", { class: "ph", "aria-hidden": "true" }));
+    const body = el("div");
+    body.append(el("strong", { text: nameOf(species) }), el("div", { class: "muted", text: species.latin || "" }));
+    button.append(body);
+    button.addEventListener("click", () => openHistory(species.id));
+    hits.append(button);
+  });
+}
+
+function renderAtlas(screen) {
+  screen.append(el("h1", { text: t("atlasTitle") }), el("p", { class: "lead", text: t("atlasLead") }));
+  const search = el("input", { id: "atlas-q", value: state.atlasQuery, placeholder: t("searchPh"), autocomplete: "off" });
+  const hits = el("div", { id: "atlas-hits", class: "atlas-grid" });
+  search.addEventListener("input", () => {
+    state.atlasQuery = search.value.trim();
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(async () => {
+      try {
+        await loadAtlas();
+        paintAtlas(document.getElementById("atlas-hits"));
+      } catch (err) {
+        if (err.status !== 401) toast(err.message);
+      }
+    }, 220);
+  });
+  const seas = el("div", { class: "chips" });
+  [
+    ["", t("allSeas")],
+    ["red", t("redSea")],
+    ["mediterranean", t("medSea")],
+  ].forEach(([value, label]) => {
+    seas.append(el("button", {
+      type: "button",
+      class: `chip${state.atlasSea === value ? " on" : ""}`,
+      text: label,
+      onclick: async () => {
+        state.atlasSea = value;
+        try {
+          await loadAtlas();
+        } catch (err) {
+          if (err.status !== 401) toast(err.message);
+        }
+        render();
+      },
+    }));
+  });
+  screen.append(field(t("findSpecies"), search), seas, hits);
+  paintAtlas(hits);
+}
+
+async function openHistory(speciesId) {
+  const id = safeId(speciesId);
+  if (!id) return;
+  const fromTab = state.history ? state.history.fromTab : state.tab;
+  state.editing = null;
+  state.confirm = null;
+  state.diveSheet = null;
+  state.history = { speciesId: id, fromTab, data: null, error: "", loading: true };
+  history.replaceState(null, "", `#species/${encodeURIComponent(id)}`);
+  render();
+  try {
+    const data = await api(`/species/${encodeURIComponent(id)}/sightings?limit=50`);
+    if (!state.history || state.history.speciesId !== id) return;
+    state.history.data = data;
+    state.history.loading = false;
+  } catch (err) {
+    if (!state.history || state.history.speciesId !== id) return;
+    if (err.status === 401) return;
+    state.history.loading = false;
+    state.history.error = err.message || t("network");
+  }
+  render();
+}
+
+async function loadMoreHistory() {
+  const hist = state.history;
+  if (!hist || !hist.data) return;
+  const offset = (hist.data.items || []).length;
+  try {
+    const more = await api(`/species/${encodeURIComponent(hist.speciesId)}/sightings?limit=50&offset=${offset}`);
+    if (!state.history || state.history.speciesId !== hist.speciesId) return;
+    state.history.data.items = (state.history.data.items || []).concat(more.items || []);
+    state.history.data.total = more.total;
+    state.history.data.offset = 0;
+    render();
+  } catch (err) {
+    if (err.status !== 401) toast(err.message);
+  }
+}
+
+function closeHistory() {
+  const tab = (state.history && state.history.fromTab) || "atlas";
+  state.history = null;
+  state.diveSheet = null;
+  showTab(TABS.includes(tab) ? tab : "atlas");
+}
+
+function reportThisSpecies(species) {
+  state.selectedSpecies = {
+    id: species.id,
+    latin: species.latin || "",
+    hebrew: species.hebrew || "",
+    english: species.english || "",
+  };
+  state.draft = draft();
+  state.history = null;
+  showTab("report");
+}
+
+function historyThumb(row) {
+  const media = (row.media || []).find((item) => item.content_url);
+  if (media) return el("img", { src: media.content_url, alt: "" });
+  return el("div", { class: "ph", "aria-hidden": "true" });
+}
+
+function renderHistoryRow(row, species) {
+  const card = el("article", { class: "obs" });
+  card.append(historyThumb(row));
+  const body = el("div");
+  const title = el("h3", { class: "meta-line" });
+  title.append(document.createTextNode(whenOf(row) || t("history")));
+  title.append(el("span", {
+    class: row.mine ? "badge mine" : "badge atlas",
+    text: row.mine ? t("mineBadge") : t("atlasBadge"),
+  }));
+  body.append(title);
+  const bits = [nameOf(row, "site")];
+  if (row.count != null) bits.push(`×${row.count}`);
+  if (row.depth_m != null && row.depth_m !== "") bits.push(`${row.depth_m} m`);
+  if (row.method) bits.push(methodLabel(row.method));
+  if (row.kind === "catch") bits.push(t("catch"));
+  body.append(el("p", { text: bits.filter(Boolean).join(" · ") }));
+  if (row.observer) body.append(el("p", { text: `${t("reportedBy")} ${row.observer}` }));
+  if (row.notes) body.append(el("p", { text: row.notes }));
+  const actions = el("div", { class: "row-actions" });
+  if (row.dive) {
+    const when = [fmtDate(row.dive.dive_date), fmtTime(row.dive.start_time)].filter(Boolean).join(" · ");
+    actions.append(el("button", {
+      type: "button",
+      class: "btn",
+      text: when ? `${t("diveLink")} · ${when}` : t("diveLink"),
+      onclick: () => {
+        state.diveSheet = row.dive;
+        renderDiveSheet();
+      },
+    }));
+  }
+  if (row.mine) {
+    const record = {
+      ...row,
+      species_id: species.id,
+      species_latin: species.latin || "",
+      species_hebrew: species.hebrew || "",
+      species_english: species.english || "",
+    };
+    actions.append(
+      el("button", { type: "button", class: "btn", text: t("edit"), onclick: () => openEdit("sighting", record) }),
+      el("button", {
+        type: "button",
+        class: "btn danger",
+        text: t("delete"),
+        onclick: () => askDelete(t("deleteSighting"), () => api(`/sightings/${row.id}`, { method: "DELETE" }), "history"),
+      })
+    );
+  }
+  body.append(actions);
+  card.append(body);
+  return card;
+}
+
+function renderHistory(screen) {
+  const hist = state.history;
+  const wrap = el("div", { class: "history-wrap" });
+  wrap.append(el("button", { type: "button", class: "linkish", text: t("back"), onclick: () => closeHistory() }));
+  if (!hist || hist.loading) {
+    wrap.append(el("p", { class: "lead", text: t("loading") }));
+    screen.append(wrap);
+    return;
+  }
+  if (hist.error) {
+    wrap.append(el("div", { class: "banner", text: hist.error }));
+    screen.append(wrap);
+    return;
+  }
+  const data = hist.data || { species: {}, items: [], total: 0, site_count: 0 };
+  const species = data.species || {};
+  const head = el("div", { class: "species-head" });
+  if (species.image_url) head.append(el("img", { src: species.image_url, alt: "" }));
+  const titles = el("div");
+  titles.append(el("h1", { text: nameOf(species) || t("history") }));
+  const leadBits = [species.latin, seaLabel(species)].filter(Boolean);
+  titles.append(el("p", { class: "lead", text: leadBits.join(" · ") }));
+  head.append(titles);
+  wrap.append(head, el("p", { class: "hint", text: t("historyLead") }));
+  const stats = el("div", { class: "stats" });
+  [
+    [data.total || 0, t("sightingsStat")],
+    [data.site_count || 0, t("sitesStat")],
+    [fmtDate(data.last_seen) || "—", t("lastSeen"), "compact"],
+  ].forEach(([value, label, compact]) => {
+    stats.append(el("div", { class: "stat" }, [el("b", { class: compact || "", text: String(value) }), el("span", { text: label })]));
+  });
+  wrap.append(stats);
+  const items = data.items || [];
+  if (!items.length) {
+    const empty = el("div", { class: "card empty" });
+    empty.append(
+      el("p", { text: t("emptyHistory") }),
+      el("button", {
+        type: "button",
+        class: "btn primary",
+        text: t("reportSpecies"),
+        onclick: () => reportThisSpecies(species),
+      })
+    );
+    wrap.append(empty);
+    screen.append(wrap);
+    return;
+  }
+  const stack = el("div", { class: "stack" });
+  items.forEach((row) => stack.append(renderHistoryRow(row, species)));
+  wrap.append(stack);
+  if (items.length < (data.total || 0)) {
+    wrap.append(el("button", { type: "button", class: "btn", text: t("loadMore"), onclick: () => loadMoreHistory() }));
+  }
+  screen.append(wrap);
+}
+
+function renderDiveSheet() {
+  document.querySelector(".dive-sheet")?.remove();
+  if (!state.diveSheet || state.confirm) return;
+  const dive = state.diveSheet;
+  const back = el("div", { class: "sheet-back dive-sheet" });
+  const sheet = el("div", { class: "sheet", role: "dialog", "aria-modal": "true" });
+  sheet.append(el("h2", { text: nameOf(dive, "site") || t("diveDetails") }));
+  const bits = [fmtDate(dive.dive_date), fmtTime(dive.start_time), methodLabel(dive.method)].filter(Boolean);
+  if (bits.length) sheet.append(el("p", { text: bits.join(" · ") }));
+  const extra = [];
+  if (dive.duration_min != null && dive.duration_min !== "") extra.push(`${dive.duration_min} ${t("minShort")}`);
+  if (dive.max_depth_m != null && dive.max_depth_m !== "") extra.push(`${dive.max_depth_m} m`);
+  if (extra.length) sheet.append(el("p", { text: extra.join(" · ") }));
+  if (dive.observer) sheet.append(el("p", { text: `${t("reportedBy")} ${dive.observer}` }));
+  if (dive.notes) sheet.append(el("p", { text: dive.notes }));
+  const badge = el("p");
+  badge.append(el("span", { class: dive.mine ? "badge mine" : "badge atlas", text: dive.mine ? t("mineBadge") : t("atlasBadge") }));
+  sheet.append(badge);
+  if (dive.mine) {
+    sheet.append(el("button", {
+      type: "button",
+      class: "btn primary",
+      text: t("editDive"),
+      onclick: () => {
+        const record = dive;
+        state.diveSheet = null;
+        openEdit("dive", record);
+      },
+    }));
+  }
+  sheet.append(el("button", {
+    type: "button",
+    class: "btn",
+    text: t("close"),
+    onclick: () => {
+      state.diveSheet = null;
+      render();
+    },
+  }));
+  back.append(sheet);
+  back.addEventListener("click", (event) => {
+    if (event.target === back) {
+      state.diveSheet = null;
+      render();
+    }
+  });
+  document.body.append(back);
 }
 
 document.querySelectorAll(".nav button").forEach((button) => {
@@ -1104,11 +1526,18 @@ async function boot() {
     state.me = me;
     state.sites = (await api("/sites")).items;
     const hash = location.hash.replace("#", "");
+    if (hash.startsWith("species/")) {
+      state.tab = "atlas";
+      await openHistory(decodeURIComponent(hash.slice("species/".length)));
+      return;
+    }
     await showTab(hash || "report");
   } catch {
     state.authError = "network";
     render();
   }
 }
+
+window.fishOpenHistory = (id) => openHistory(id);
 
 boot();

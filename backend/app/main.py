@@ -6,7 +6,7 @@ import logging
 from contextlib import asynccontextmanager
 
 import psycopg
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -15,6 +15,7 @@ from app.catalog import router as catalog_router
 from app.config import WEB_ROOT, load_settings
 from app.db import get_conn, make_pool
 from app.google_auth import router as google_router
+from app.history import guide_file, router as history_router
 from app.reports import router as reports_router
 
 log = logging.getLogger("fish")
@@ -47,7 +48,26 @@ app = FastAPI(title="Fish Onestop", version="0.1.0", lifespan=lifespan)
 app.include_router(auth_router)
 app.include_router(google_router)
 app.include_router(catalog_router)
+app.include_router(history_router)
 app.include_router(reports_router)
+
+
+_GUIDE_TYPES = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+}
+
+
+@app.get("/guide/{name}")
+def guide_image(name: str, request: Request) -> FileResponse:
+    path = guide_file(request.app.state.settings.repo_root, name)
+    if path is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    media = _GUIDE_TYPES.get(path.suffix.lower(), "application/octet-stream")
+    return FileResponse(path, media_type=media, headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.get("/health")
