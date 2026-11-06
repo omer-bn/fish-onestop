@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#06314a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Fish Onestop">
+  <title>Fish Onestop</title>
+  <link rel="icon" href="/assets/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/assets/app.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+</head>
+<body>
+  <nav class="nav" aria-label="Primary">
+    <button type="button" data-tab="report" class="on">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      <span data-t="report">Report</span>
+    </button>
+    <button type="button" data-tab="mine">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M5 7h14M5 12h14M5 17h9"/></svg>
+      <span data-t="mine">Mine</span>
+    </button>
+    <button type="button" data-tab="map">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg>
+      <span data-t="map">Map</span>
+    </button>
+    <button type="button" data-tab="account">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-3.3 0-8 1.7-8 5v1h16v-1c0-3.3-4.7-5-8-5z"/></svg>
+      <span data-t="account">Account</span>
+    </button>
+  </nav>
+  <div class="shell">
+    <header>
+      <img src="/assets/icons/icon-192.png" alt="" width="40" height="40">
+      <div class="brand">
+        <strong>Fish Onestop</strong>
+        <small data-t="lab">Belmaker Lab</small>
+      </div>
+      <button type="button" id="lang" class="lang">עברית</button>
+    </header>
+    <main id="screen"></main>
+  </div>
+  <noscript><p class="noscript">Fish Onestop needs JavaScript.</p></noscript>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/assets/app.js"></script>
+</body>
+</html>
