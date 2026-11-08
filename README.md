@@ -8,6 +8,8 @@ GitHub Pages serves `docs/` as a **read-only** catalog: species, sites, and the 
 
 `docs/` is the Pages artifact (`.github/workflows/pages.yml`). It is built from the catalog JSON by `static_site/build.py` and does not talk to Postgres. Publishing the API does not change that mirror.
 
+Clicking a species on that static site opens a detail view in the same pages: a map, the latest published field records (date and place), and a note on seasonality. Rows with `demo: true` stay on the observations atlas as examples and are not plotted on the species page as field records. A marker is drawn only when that record has coordinates. The species catalog has no season field. A month-by-month chart appears only when published field records cover at least two months and at least four records, and the chart is labeled as reporting frequency, not as the easiest season to see the fish. Otherwise the page says there is not enough data. The page does not read the signed-in app or anyone's private reports.
+
 ## Local Postgres
 
 `docker-compose.yml` starts Postgres 16 for development. The database password there (`fish` / `fish`) is only for that local database. Use a different password anywhere else, and keep real credentials out of git. Copy `.env.example` to `.env` if you want the commands below to pick up `DATABASE_URL` (`.env` is gitignored).
