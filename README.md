@@ -36,7 +36,14 @@ Open <http://127.0.0.1:8000> on a phone, or in a narrow browser window. The same
 
 The home tab is a large “report a sighting” form: species search, site, count, depth, and a camera button (`capture` on the photo input). Photos are stored on disk under `var/media/` (or `MEDIA_ROOT`). Postgres keeps `media.storage_key` only, not the file bytes.
 
-Signed-in people can open **Mine** to view, edit, and delete their own dives and sightings, including photos. **Map** shows the sites and species they have recorded. The public atlas stays on the Pages site.
+Signed-in people can open **Mine** to view, edit, and delete their own dives and sightings, including photos. **Map** shows the sites and species they have recorded. **Atlas** searches the species catalog. Opening a species — from Atlas, from a species name in Mine, from a species chip or map popup, or from the fish selected on Report — shows that species’ sighting history: newest first, with the date, the dive start time when the sighting belongs to a dive, the site, and count, depth, and method. A photo thumbnail shows when that sighting has one. Public atlas rows are the unowned ones (including the seeded demo) and name the reporter. Your own rows are marked so edit and delete use the same actions as Mine. Other people’s reports stay private and are left out of the list.
+
+```bash
+curl -b /tmp/fish.cookies \
+  http://127.0.0.1:8000/species/red-amphiprion-bicinctus/sightings
+```
+
+After signing in, search Atlas for `clownfish` or `שושנון` and open the history. The same screen is reachable on a phone-width window and on the wide layout.
 
 `COOKIE_SECURE=1` marks the session cookie Secure. Leave it unset for local HTTP. A Secure cookie is not stored on an `http://` page, which also breaks the Google return trip.
 

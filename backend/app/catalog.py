@@ -5,7 +5,9 @@ from __future__ import annotations
 import psycopg
 from fastapi import APIRouter, Depends, Query
 
+from app.config import REPO_ROOT
 from app.db import dump, get_conn
+from app.history import with_guide_image
 
 router = APIRouter(tags=["catalog"])
 
@@ -38,15 +40,15 @@ def list_species(
     params.append(limit)
     rows = conn.execute(
         f"""
-        SELECT id, latin, hebrew, english, sea, family_latin
+        SELECT id, latin, hebrew, english, sea, family_latin, image
         FROM species
         WHERE {' AND '.join(clauses)}
-        ORDER BY latin
+        ORDER BY (image = '') ASC, latin
         LIMIT %s
         """,
         params,
     ).fetchall()
-    return {"items": dump(rows)}
+    return {"items": [with_guide_image(dump(row), REPO_ROOT) for row in rows]}
 
 
 @router.get("/species/{species_id}")
@@ -64,7 +66,7 @@ def get_species(species_id: str, conn: psycopg.Connection = Depends(get_conn)) -
         from fastapi import HTTPException
 
         raise HTTPException(status_code=404, detail="Species not found")
-    return dump(row)
+    return with_guide_image(dump(row), REPO_ROOT)
 
 
 @router.get("/sites")

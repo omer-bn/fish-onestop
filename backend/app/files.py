@@ -49,6 +49,11 @@ def save_image(root: Path, data: bytes) -> tuple[str, str]:
     return key, kind
 
 
+def is_stored_key(key: str) -> bool:
+    """True when the key is an uploaded object name, not a catalog path."""
+    return bool(_KEY_RE.fullmatch(key or ""))
+
+
 def resolve_key(root: Path, key: str) -> Path:
     if not _KEY_RE.fullmatch(key or ""):
         raise HTTPException(status_code=404, detail="Photo not found")

@@ -12,8 +12,9 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from app.auth import require_user, same_user
+from app.auth import optional_user, require_user, same_user
 from app.db import dump, get_conn
+from app.history import can_read_media
 from app.files import MAX_BYTES, resolve_key, save_image, unlink_key
 
 router = APIRouter(tags=["reports"])
@@ -759,12 +760,12 @@ def delete_media(
 def media_content(
     media_id: str,
     request: Request,
-    user: dict[str, Any] = Depends(require_user),
+    user: dict[str, Any] | None = Depends(optional_user),
     conn: psycopg.Connection = Depends(get_conn),
 ) -> FileResponse:
     row = conn.execute(
         """
-        SELECT m.storage_key, m.content_type, m.user_id,
+        SELECT m.storage_key, m.content_type, m.user_id, m.sighting_id, m.dive_id,
                s.user_id AS sighting_user_id, d.user_id AS dive_user_id
         FROM media m
         LEFT JOIN sightings s ON s.id = m.sighting_id
@@ -773,11 +774,7 @@ def media_content(
         """,
         (media_id,),
     ).fetchone()
-    if row is None or not (
-        same_user(row["user_id"], user)
-        or same_user(row["sighting_user_id"], user)
-        or same_user(row["dive_user_id"], user)
-    ):
+    if not can_read_media(row, user):
         raise HTTPException(status_code=404, detail="Photo not found")
     path = resolve_key(request.app.state.settings.media_root, row["storage_key"])
     return FileResponse(
