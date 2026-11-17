@@ -37,6 +37,14 @@ def _flag(name: str) -> bool:
     return os.environ.get(name, "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _default_on(name: str) -> bool:
+    """True unless the variable is set to a false value. Unset stays on."""
+    raw = os.environ.get(name)
+    if raw is None or raw.strip() == "":
+        return True
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 @dataclass(frozen=True)
 class Settings:
     database_url: str
@@ -48,6 +56,7 @@ class Settings:
     google_client_id: str
     google_client_secret: str
     google_redirect_uri: str
+    demo_open: bool
 
     @property
     def google_enabled(self) -> bool:
@@ -81,4 +90,5 @@ def load_settings() -> Settings:
         google_client_id=os.environ.get("GOOGLE_CLIENT_ID", "").strip(),
         google_client_secret=os.environ.get("GOOGLE_CLIENT_SECRET", "").strip(),
         google_redirect_uri=redirect,
+        demo_open=_default_on("DEMO_OPEN"),
     )
