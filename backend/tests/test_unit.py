@@ -7,7 +7,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+import os
+
 from app.auth import hash_password, verify_password
+from app.config import load_settings
 from app.google_auth import slug_username, username_candidates
 from app.history import can_read_media, guide_name, shape_history_row
 from app.migrate import split_sql
@@ -18,6 +21,19 @@ def test_password_is_argon2id() -> None:
     assert hashed.startswith("$argon2id$")
     assert verify_password("correct horse battery", hashed)
     assert not verify_password("nope", hashed)
+
+
+def test_demo_open_is_reversible() -> None:
+    os.environ["DATABASE_URL"] = os.environ.get("DATABASE_URL") or "postgresql://fish:fish@127.0.0.1:5432/fish_onestop"
+    previous = os.environ.get("DEMO_OPEN")
+    os.environ["DEMO_OPEN"] = "0"
+    assert load_settings().demo_open is False
+    os.environ["DEMO_OPEN"] = "1"
+    assert load_settings().demo_open is True
+    if previous is None:
+        os.environ.pop("DEMO_OPEN", None)
+    else:
+        os.environ["DEMO_OPEN"] = previous
 
 
 def test_google_username_slug() -> None:
@@ -109,6 +125,7 @@ def test_migration_splits() -> None:
 
 if __name__ == "__main__":
     test_password_is_argon2id()
+    test_demo_open_is_reversible()
     test_google_username_slug()
     test_guide_name_rejects_paths()
     test_media_visibility()

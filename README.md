@@ -2,7 +2,9 @@
 
 Field guide and observation log for the Belmaker Lab (Red Sea and Mediterranean).
 
-GitHub Pages serves `docs/` as a **read-only** catalog: species, sites, and the demo atlas. That static site does not write anywhere. Accounts, new sightings, photos, and each person’s map go through the Postgres API and the phone UI in this repo.
+GitHub Pages serves `docs/` as an open catalog: species, sites, the demo atlas, and a preview of the report form. The catalog does not write anywhere. The report form on that site does not send or save a sighting. Accounts, saved sightings, photos, and each person’s map go through the Postgres API and the phone UI in this repo.
+
+The Pages catalog used to ask for a shared password before showing anything (`#gate` in `static_site/index.html`). `OPEN_ENTRY` is set to true, so the catalog opens directly. The password check is still in that file; set `OPEN_ENTRY` to false to require it again. The phone UI opens on the published catalog when `DEMO_OPEN` is unset or `1`. Set `DEMO_OPEN=0` to put the username, password, and Google sign-in back in front. Those sign-in paths are unchanged, and a guest never receives another person’s reports.
 
 ## Static site (GitHub Pages)
 

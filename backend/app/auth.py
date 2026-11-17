@@ -201,7 +201,7 @@ def _settings(request: Request) -> Any:
 @router.get("/auth/providers")
 def providers(request: Request) -> dict[str, bool]:
     settings = _settings(request)
-    return {"password": True, "google": bool(settings.google_enabled)}
+    return {"password": True, "google": bool(settings.google_enabled), "demo_open": bool(settings.demo_open)}
 
 
 @router.post("/auth/register", status_code=201)

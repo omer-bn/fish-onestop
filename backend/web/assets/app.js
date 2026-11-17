@@ -8,6 +8,11 @@ const T = {
     account: "Account",
     reportTitle: "Report a sighting",
     reportLead: "A species, a place, and a photo if you have one.",
+    guestLead: "The published catalog is open. Sign in only for your own reports.",
+    guestLock: "Your own list and map stay behind sign-in. The catalog itself is open.",
+    previewBanner: "Preview. This form does not send or save a sighting.",
+    previewNotice: "Reporting is not active yet. Nothing was sent or saved. This form will file a sighting once you are signed in on the hosted app.",
+    signInInstead: "Sign in",
     loginTitle: "Sign in",
     registerTitle: "Create an account",
     loginLead: "Use a username and password, or your Google account.",
@@ -120,6 +125,11 @@ const T = {
     account: "חשבון",
     reportTitle: "דיווח על תצפית",
     reportLead: "מין, מקום, ותמונה אם יש.",
+    guestLead: "הקטלוג שפורסם פתוח. נכנסים רק בשביל הדיווחים שלך.",
+    guestLock: "הרשימה והמפה שלך נשארות מאחורי כניסה. הקטלוג עצמו פתוח.",
+    previewBanner: "תצוגה מקדימה. הטופס הזה לא שולח ולא שומר תצפית.",
+    previewNotice: "הדיווח עדיין לא פעיל. שום דבר לא נשלח ולא נשמר. הטופס ישמור תצפית אחרי כניסה באפליקציה המאוחסנת.",
+    signInInstead: "כניסה",
     loginTitle: "כניסה",
     registerTitle: "יצירת חשבון",
     loginLead: "שם משתמש וסיסמה, או חשבון Google.",
@@ -240,7 +250,8 @@ const AUTH_ERRORS = {
 const state = {
   lang: localStorage.getItem("fishLang") || "en",
   me: null,
-  providers: { password: true, google: false },
+  providers: { password: true, google: false, demo_open: true },
+  guest: false,
   tab: "report",
   authMode: "login",
   sites: [],
@@ -398,6 +409,7 @@ async function api(path, opts = {}) {
     wrapped.data = data;
     if (response.status === 401 && !path.startsWith("/auth/")) {
       state.me = null;
+      if (state.providers.demo_open !== false) state.guest = true;
       render();
     }
     throw wrapped;
@@ -414,7 +426,7 @@ function applyChrome() {
   });
   const lang = document.getElementById("lang");
   if (lang) lang.textContent = t("other");
-  document.body.classList.toggle("authed", Boolean(state.me));
+  document.body.classList.toggle("authed", Boolean(state.me || state.guest));
   document.querySelectorAll(".nav button").forEach((button) => {
     button.classList.toggle("on", button.dataset.tab === state.tab);
   });
@@ -492,6 +504,7 @@ function renderAuth(screen) {
     const data = Object.fromEntries(new FormData(form).entries());
     try {
       state.me = await api(mode === "login" ? "/auth/login" : "/auth/register", { method: "POST", body: data });
+      state.guest = false;
       state.authError = "";
       state.sites = (await api("/sites")).items;
       await showTab("report");
@@ -1107,7 +1120,8 @@ function renderAccount(screen) {
       await api("/auth/logout", { method: "POST", body: {} });
       state.me = null;
       state.editing = null;
-      render();
+      state.guest = state.providers.demo_open !== false;
+      await showTab(state.guest ? "atlas" : "account");
     },
   }));
   screen.append(card);
@@ -1156,12 +1170,80 @@ function renderConfirm() {
   document.body.append(back);
 }
 
+function renderGuestLock(screen) {
+  const card = el("section", { class: "card" });
+  card.append(el("h1", { text: t("accountTitle") }), el("p", { class: "lead", text: t("guestLock") }));
+  card.append(el("button", { type: "button", class: "btn primary", text: t("signInInstead"), onclick: () => showTab("account") }));
+  screen.append(card);
+}
+
+function renderGuestReport(screen) {
+  const card = el("section", { class: "card report-card" });
+  card.append(el("h1", { text: t("reportTitle") }), el("p", { class: "lead", text: t("reportLead") }));
+  card.append(el("div", { class: "preview", text: t("previewBanner") }));
+  const form = el("form");
+  form.addEventListener("submit", (event) => event.preventDefault());
+  const notice = el("div", { class: "preview" });
+  notice.hidden = true;
+  const search = el("input", { id: "species-q", placeholder: t("searchPh"), autocomplete: "off" });
+  const hits = el("div", { id: "hits", class: "hits" });
+  const selected = el("div", { id: "selected" });
+  search.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => loadSpecies(search.value.trim(), hits), 220);
+  });
+  form.append(field(t("what"), search), selected, hits);
+  paintSelected(selected);
+  const site = siteOptions(state.draft.siteId);
+  site.addEventListener("change", () => { state.draft.siteId = site.value; });
+  form.append(field(t("where"), site));
+  const date = el("input", { type: "date", value: state.draft.date });
+  date.addEventListener("change", () => { state.draft.date = date.value; });
+  const time = el("input", { type: "time", value: state.draft.startTime });
+  time.addEventListener("input", () => { state.draft.startTime = time.value; });
+  form.append(field(t("when"), date), field(t("startTime"), time));
+  const count = el("input", { inputmode: "numeric", value: state.draft.count });
+  count.addEventListener("input", () => { state.draft.count = count.value; });
+  const depth = el("input", { inputmode: "decimal", value: state.draft.depth });
+  depth.addEventListener("input", () => { state.draft.depth = depth.value; });
+  const numbers = el("div", { class: "grid-2" });
+  numbers.append(field(t("count"), count), field(t("depth"), depth));
+  form.append(numbers);
+  form.append(el("div", { class: "label", text: t("how") }), chipRow(METHODS, state.draft.method, (value) => {
+    state.draft.method = value;
+    render();
+  }));
+  const notes = el("textarea", { text: state.draft.notes });
+  notes.addEventListener("input", () => { state.draft.notes = notes.value; });
+  form.append(field(t("notes"), notes));
+  const photo = el("input", { type: "file", accept: "image/*", capture: "environment" });
+  form.append(field(t("addPhoto"), photo));
+  form.append(notice);
+  form.append(el("button", {
+    type: "button",
+    class: "btn primary",
+    text: t("save"),
+    onclick: () => {
+      notice.hidden = false;
+      notice.textContent = t("previewNotice");
+    },
+  }));
+  card.append(form);
+  screen.append(card);
+}
+
 function render() {
   destroyMap();
   applyChrome();
   const screen = document.getElementById("screen");
   screen.replaceChildren();
-  if (!state.me) renderAuth(screen);
+  const guestOnly = state.guest && !state.me;
+  if (!state.me && !state.guest) renderAuth(screen);
+  else if (guestOnly && (state.tab === "mine" || state.tab === "map")) renderGuestLock(screen);
+  else if (guestOnly && state.tab === "account") {
+    screen.append(el("p", { class: "lead", text: t("guestLead") }));
+    renderAuth(screen);
+  } else if (guestOnly && state.tab !== "atlas" && !state.history) renderGuestReport(screen);
   else if (state.editing) renderEditor(screen);
   else if (state.history) renderHistory(screen);
   else if (state.tab === "mine") renderMine(screen);
@@ -1180,7 +1262,18 @@ async function showTab(tab) {
   state.confirm = null;
   state.history = null;
   state.diveSheet = null;
-  if (!state.me) {
+  if (!state.me && !state.guest) {
+    render();
+    return;
+  }
+  if (state.guest && !state.me) {
+    try {
+      if (state.tab === "atlas") await loadAtlas();
+      if (!state.sites.length) state.sites = (await api("/sites")).items;
+    } catch (err) {
+      if (err.status === 401) return;
+      toast(err.message);
+    }
     render();
     return;
   }
@@ -1520,6 +1613,13 @@ async function boot() {
     ]);
     state.providers = providers || state.providers;
     if (!me) {
+      if (state.providers.demo_open !== false) {
+        state.guest = true;
+        state.sites = (await api("/sites")).items;
+        const hash = location.hash.replace("#", "");
+        await showTab(hash || "atlas");
+        return;
+      }
       render();
       return;
     }

@@ -191,6 +191,12 @@ label.field:has(input[type="checkbox"]) { flex-direction: row; align-items: cent
   padding: 10px 12px;
   margin-bottom: 12px;
 }
+.preview {
+  background: #fff8e1;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
 .linkish {
   background: none;
   border: 0;
