@@ -25,7 +25,7 @@ for r in obs["sightings"] + obs["dives"]:
 (OUT / "data/observations.json").write_text(json.dumps(obs, ensure_ascii=False), "utf-8")
 html = (Path(__file__).parent / "index.html").read_text("utf-8").replace("__HASH__", PASSWORD_SHA256)
 (OUT / "index.html").write_text(html, "utf-8")
-for name in ("species.js", "site.js"):
+for name in ("species.js", "site.js", "group.js"):
     script = Path(__file__).parent / name
     if script.is_file():
         shutil.copy(script, OUT / name)

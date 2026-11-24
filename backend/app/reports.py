@@ -43,6 +43,19 @@ def _optional_int(value: str, label: str) -> int | None:
     return number
 
 
+def _coord(value: str, label: str, low: float, high: float) -> float | None:
+    value = (value or "").strip()
+    if not value:
+        return None
+    try:
+        number = float(value)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"{label} must be a number") from exc
+    if number < low or number > high:
+        raise HTTPException(status_code=422, detail=f"{label} is out of range")
+    return number
+
+
 def _optional_float(value: str, label: str) -> float | None:
     value = (value or "").strip()
     if not value:
@@ -163,6 +176,8 @@ def _insert_sighting(
     kind: str,
     notes: str,
     sea: str | None,
+    lat: float | None = None,
+    lng: float | None = None,
 ) -> str:
     sighting_id = _allocate(conn, "sightings")
     conn.execute(
@@ -182,8 +197,8 @@ def _insert_sighting(
             observed_on,
             count,
             depth_m,
-            site["lat"] if site else None,
-            site["lng"] if site else None,
+            lat if lat is not None else (site["lat"] if site else None),
+            lng if lng is not None else (site["lng"] if site else None),
             sea,
             method,
             kind,
@@ -460,6 +475,9 @@ def create_report(
     duration_min: str = Form(""),
     max_depth_m: str = Form(""),
     dive_notes: str = Form(""),
+    lat: str = Form(""),
+    lng: str = Form(""),
+    sea: str = Form(""),
     photo: UploadFile | None = File(None),
     user: dict[str, Any] = Depends(require_user),
     conn: psycopg.Connection = Depends(get_conn),
@@ -473,6 +491,10 @@ def create_report(
     notes_text = _clean_text(notes, 4000)
     count_n = _optional_int(count, "count")
     depth_n = _optional_float(depth_m, "depth")
+    lat_n = _coord(lat, "latitude", -90, 90)
+    lng_n = _coord(lng, "longitude", -180, 180)
+    if (lat_n is None) != (lng_n is None):
+        raise HTTPException(status_code=422, detail="Provide both latitude and longitude")
     dive = None
     site = None
     new_dive_id = None
@@ -483,10 +505,13 @@ def create_report(
         site = _site(conn, dive["site_id"]) if dive["site_id"] else None
         new_dive_id = dive["id"]
     else:
-        if not site_id.strip():
+        if site_id.strip():
+            site = _site(conn, site_id)
+        elif lat_n is None:
             raise HTTPException(status_code=422, detail="Choose a site")
-        site = _site(conn, site_id)
-        if _form_bool(log_dive):
+        if _form_bool(log_dive) and site is None:
+            raise HTTPException(status_code=422, detail="Choose a site to log a dive")
+        if _form_bool(log_dive) and site is not None:
             new_dive_id = _allocate(conn, "dives")
             conn.execute(
                 """
@@ -513,7 +538,7 @@ def create_report(
                     _clean_text(dive_notes, 4000) or notes_text,
                 ),
             )
-    sea = (site or {}).get("sea") or species["sea"]
+    chosen_sea = (site or {}).get("sea") or (sea if sea in {"red", "mediterranean"} else "") or species["sea"]
     sighting_id = _insert_sighting(
         conn,
         user=user,
@@ -526,7 +551,9 @@ def create_report(
         method=method_text,
         kind=kind_text,
         notes=notes_text,
-        sea=sea,
+        sea=chosen_sea,
+        lat=lat_n,
+        lng=lng_n,
     )
     _refresh_count(conn, new_dive_id)
     media = _attach_photo(conn, request, user, sighting_id=sighting_id, dive_id=None, upload=photo)

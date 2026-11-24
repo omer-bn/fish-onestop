@@ -1,4 +1,4 @@
-const CACHE = "fish-onestop-v3";
+const CACHE = "fish-onestop-v4";
 const SHELL = ["/", "/assets/app.css", "/assets/app.js", "/manifest.webmanifest", "/assets/icons/icon-192.png", "/assets/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {

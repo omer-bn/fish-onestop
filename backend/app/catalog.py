@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import re
+
 import psycopg
 from fastapi import APIRouter, Depends, Query
+
+_SEA_RE = re.compile(r"^[a-z][a-z0-9_-]{0,40}$")
 
 from app.config import REPO_ROOT
 from app.db import dump, get_conn
@@ -26,7 +30,7 @@ def list_species(
 ) -> dict:
     clauses = ["TRUE"]
     params: list = []
-    if sea in {"red", "mediterranean"}:
+    if _SEA_RE.fullmatch(sea):
         clauses.append("sea = %s")
         params.append(sea)
     query = q.strip()
@@ -40,10 +44,10 @@ def list_species(
     params.append(limit)
     rows = conn.execute(
         f"""
-        SELECT id, latin, hebrew, english, sea, family_latin, image
+        SELECT id, latin, hebrew, english, sea, family_latin, family_hebrew, family_english, image
         FROM species
         WHERE {' AND '.join(clauses)}
-        ORDER BY (image = '') ASC, latin
+        ORDER BY family_latin, latin
         LIMIT %s
         """,
         params,
