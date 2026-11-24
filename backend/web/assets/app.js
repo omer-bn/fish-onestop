@@ -31,6 +31,13 @@ const T = {
     searchPh: "Clownfish, שושנון, Amphiprion",
     where: "Where",
     chooseSite: "Choose a site",
+    chooseSea: "Sea",
+    chooseSeaFirst: "Choose a sea first",
+    chooseFromMap: "Choose from map",
+    hideMap: "Hide map",
+    customPoint: "Custom point",
+    mapHint: "Tap a marker to pick a site, or tap the water to set a point.",
+    noFamily: "Family not recorded",
     when: "When",
     count: "Count",
     depth: "Depth (m)",
@@ -104,7 +111,7 @@ const T = {
     googleOff: "Google not linked",
     logout: "Log out",
     publicNote: "The species guide on GitHub Pages stays a read-only catalog. Reports you save here live in Postgres.",
-    required: "Choose a species and a site.",
+    required: "Choose a species, and a site or a point on the map.",
     photoRemoved: "Photo removed",
     network: "The server is not responding.",
     googleCancelled: "Google sign-in was cancelled.",
@@ -148,6 +155,13 @@ const T = {
     searchPh: "שושנון, clownfish, Amphiprion",
     where: "איפה",
     chooseSite: "בחירת אתר",
+    chooseSea: "ים",
+    chooseSeaFirst: "קודם בוחרים ים",
+    chooseFromMap: "בחירה מהמפה",
+    hideMap: "הסתרת המפה",
+    customPoint: "נקודה על המפה",
+    mapHint: "לוחצים על סמן כדי לבחור אתר, או על הים כדי לקבוע נקודה.",
+    noFamily: "משפחה לא רשומה",
     when: "מתי",
     count: "כמות",
     depth: "עומק (מ')",
@@ -221,7 +235,7 @@ const T = {
     googleOff: "Google לא מקושר",
     logout: "יציאה",
     publicNote: "מדריך המינים ב-GitHub Pages נשאר קטלוג לקריאה בלבד. דיווחים שנשמרים כאן נשמרים ב-Postgres.",
-    required: "צריך לבחור מין ואתר.",
+    required: "צריך לבחור מין, ואתר או נקודה על המפה.",
     photoRemoved: "התמונה הוסרה",
     network: "השרת לא מגיב.",
     googleCancelled: "הכניסה עם Google בוטלה.",
@@ -276,6 +290,7 @@ const state = {
 const TABS = ["report", "mine", "map", "atlas", "account"];
 
 let mapObj = null;
+let reportMap = null;
 let mapToken = 0;
 let searchTimer = 0;
 let searchSeq = 0;
@@ -288,6 +303,11 @@ function t(key) {
 function draft() {
   return {
     siteId: "",
+    sea: "",
+    lat: "",
+    lng: "",
+    customPoint: false,
+    showMap: false,
     date: new Date().toISOString().slice(0, 10),
     count: "1",
     depth: "",
@@ -438,6 +458,10 @@ function destroyMap() {
     mapObj.remove();
     mapObj = null;
   }
+  if (reportMap) {
+    reportMap.remove();
+    reportMap = null;
+  }
 }
 
 function toast(message) {
@@ -545,15 +569,170 @@ function chipRow(values, current, onPick) {
   return row;
 }
 
+function seaLabel(sea) {
+  if (sea === "red") return t("redSea");
+  if (sea === "mediterranean") return t("medSea");
+  return sea || "";
+}
+
+function knownSeas() {
+  const found = new Set(state.sites.map((site) => site.sea).filter(Boolean));
+  const preferred = ["mediterranean", "red"];
+  return preferred.filter((sea) => found.has(sea)).concat([...found].filter((sea) => !preferred.includes(sea)).sort());
+}
+
+function familyLabel(group) {
+  if (!group.latin) return t("noFamily");
+  const common = state.lang === "he" ? group.hebrew || group.english : group.english || group.hebrew;
+  return common ? `${group.latin} · ${common}` : group.latin;
+}
+
+function groupSpecies(items) {
+  const buckets = new Map();
+  (items || []).forEach((row) => {
+    const latin = String(row.family_latin || (row.family && row.family.latin) || "").trim();
+    if (!buckets.has(latin)) {
+      buckets.set(latin, {
+        latin,
+        english: row.family_english || (row.family && row.family.english) || "",
+        hebrew: row.family_hebrew || (row.family && row.family.hebrew) || "",
+        species: [],
+      });
+    }
+    buckets.get(latin).species.push(row);
+  });
+  const groups = [...buckets.values()];
+  groups.forEach((group) => {
+    group.species.sort((a, b) => String(a.latin || "").localeCompare(String(b.latin || ""), "en"));
+  });
+  groups.sort((a, b) => {
+    if (!a.latin && b.latin) return 1;
+    if (a.latin && !b.latin) return -1;
+    return a.latin.localeCompare(b.latin, "en");
+  });
+  return groups;
+}
+
 function siteOptions(selected, name) {
   const select = el("select", name ? { id: "site", name } : { id: "site" });
-  select.append(el("option", { value: "", text: t("chooseSite") }));
-  state.sites.forEach((site) => {
+  const sites = state.draft.sea ? state.sites.filter((site) => site.sea === state.draft.sea) : [];
+  select.append(el("option", { value: "", text: state.draft.sea ? t("chooseSite") : t("chooseSeaFirst") }));
+  if (!state.draft.sea) select.disabled = true;
+  sites.forEach((site) => {
     const option = el("option", { value: site.id, text: nameOf(site, "site") });
     if (site.id === selected) option.selected = true;
     select.append(option);
   });
   return select;
+}
+
+function appendPlacePicker(form) {
+  const chips = el("div", { class: "chips" });
+  knownSeas().forEach((sea) => {
+    chips.append(el("button", {
+      type: "button",
+      class: `chip${state.draft.sea === sea ? " on" : ""}`,
+      text: seaLabel(sea),
+      onclick: () => {
+        state.draft.sea = sea;
+        const current = state.sites.find((site) => site.id === state.draft.siteId);
+        if (!current || current.sea !== sea) {
+          state.draft.siteId = "";
+          state.draft.customPoint = false;
+          state.draft.lat = "";
+          state.draft.lng = "";
+        }
+        render();
+      },
+    }));
+  });
+  form.append(el("div", { class: "label", text: t("chooseSea") }), chips);
+  const site = siteOptions(state.draft.siteId);
+  site.addEventListener("change", () => {
+    state.draft.siteId = site.value;
+    state.draft.customPoint = false;
+    const chosen = state.sites.find((item) => item.id === site.value);
+    if (chosen && chosen.lat != null && chosen.lng != null) {
+      state.draft.lat = String(chosen.lat);
+      state.draft.lng = String(chosen.lng);
+    }
+    render();
+  });
+  form.append(field(t("where"), site));
+  form.append(el("button", {
+    type: "button",
+    class: "btn",
+    text: state.draft.showMap ? t("hideMap") : t("chooseFromMap"),
+    disabled: state.draft.sea ? null : true,
+    onclick: () => {
+      if (!state.draft.sea) return;
+      state.draft.showMap = !state.draft.showMap;
+      render();
+    },
+  }));
+  if (state.draft.showMap && state.draft.sea) form.append(el("div", { id: "report-map" }));
+  const coord = state.draft.lat && state.draft.lng
+    ? `${state.draft.customPoint ? `${t("customPoint")} · ` : ""}${Number(state.draft.lat).toFixed(5)}, ${Number(state.draft.lng).toFixed(5)}`
+    : t("mapHint");
+  form.append(el("p", { class: "hint", text: coord }));
+}
+
+function mountReportMap() {
+  const div = document.getElementById("report-map");
+  if (!div || !window.L || !state.draft.showMap || !state.draft.sea) return;
+  const sites = state.sites.filter((site) => site.sea === state.draft.sea && site.lat != null && site.lng != null);
+  const map = L.map(div, { scrollWheelZoom: false });
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "&copy; OpenStreetMap",
+  }).addTo(map);
+  const bounds = [];
+  let swallowMapClick = false;
+  sites.forEach((site) => {
+    const marker = L.circleMarker([site.lat, site.lng], {
+      radius: 9,
+      color: "#06314a",
+      weight: 2,
+      fillColor: state.draft.siteId === site.id ? "#0b6e99" : "#ffd166",
+      fillOpacity: 0.95,
+    });
+    marker.on("click", (event) => {
+      swallowMapClick = true;
+      if (window.L && L.DomEvent) L.DomEvent.stopPropagation(event);
+      state.draft.siteId = site.id;
+      state.draft.lat = String(site.lat);
+      state.draft.lng = String(site.lng);
+      state.draft.customPoint = false;
+      render();
+    });
+    marker.bindTooltip(nameOf(site, "site"));
+    marker.addTo(map);
+    bounds.push([site.lat, site.lng]);
+  });
+  if (state.draft.customPoint && state.draft.lat && state.draft.lng) {
+    L.circleMarker([Number(state.draft.lat), Number(state.draft.lng)], {
+      radius: 8,
+      color: "#9f2d22",
+      weight: 2,
+      fillColor: "#ffffff",
+      fillOpacity: 0.95,
+    }).addTo(map);
+  }
+  map.on("click", (event) => {
+    if (swallowMapClick) {
+      swallowMapClick = false;
+      return;
+    }
+    state.draft.siteId = "";
+    state.draft.customPoint = true;
+    state.draft.lat = event.latlng.lat.toFixed(5);
+    state.draft.lng = event.latlng.lng.toFixed(5);
+    render();
+  });
+  if (bounds.length === 1) map.setView(bounds[0], 12);
+  else if (bounds.length) map.fitBounds(bounds, { padding: [24, 24] });
+  else map.setView(state.draft.sea === "red" ? [29.54, 34.93] : [32.4, 34.85], state.draft.sea === "red" ? 10 : 7);
+  reportMap = map;
+  setTimeout(() => map.invalidateSize(), 0);
 }
 
 function renderReport(screen) {
@@ -598,13 +777,7 @@ function renderReport(screen) {
   form.append(field(t("what"), search), selected, hits);
   paintSelected(selected);
 
-  if (!state.draft.diveId) {
-    const site = siteOptions(state.draft.siteId);
-    site.addEventListener("change", () => {
-      state.draft.siteId = site.value;
-    });
-    form.append(field(t("where"), site));
-  }
+  if (!state.draft.diveId) appendPlacePicker(form);
 
   const date = el("input", { type: "date", id: "date", value: state.draft.date, required: "required" });
   date.addEventListener("change", () => {
@@ -735,10 +908,14 @@ async function loadSpecies(query, hits) {
     return;
   }
   try {
-    const data = await api(`/species?${new URLSearchParams({ q: query, limit: "20" })}`);
+    const params = { q: query, limit: "40" };
+    if (state.draft.sea) params.sea = state.draft.sea;
+    const data = await api(`/species?${new URLSearchParams(params)}`);
     if (seq !== searchSeq) return;
     hits.replaceChildren();
-    (data.items || []).forEach((species) => {
+    groupSpecies(data.items || []).forEach((group) => {
+      hits.append(el("h3", { class: "family-head", text: familyLabel(group) }));
+      group.species.forEach((species) => {
       const row = el("div", { class: "hit-row" });
       const button = el("button", { type: "button", class: "hit-main" });
       button.append(el("strong", { text: nameOf(species) }), el("small", { text: species.latin || "" }));
@@ -760,6 +937,7 @@ async function loadSpecies(query, hits) {
         })
       );
       hits.append(row);
+      });
     });
   } catch (err) {
     if (seq === searchSeq && err.status !== 401) hits.textContent = err.message;
@@ -768,7 +946,7 @@ async function loadSpecies(query, hits) {
 
 async function saveReport(error, submit) {
   error.hidden = true;
-  if (!state.selectedSpecies || (!state.draft.siteId && !state.draft.diveId)) {
+  if (!state.selectedSpecies || (!state.draft.siteId && !state.draft.diveId && !(state.draft.lat && state.draft.lng))) {
     error.hidden = false;
     error.textContent = t("required");
     return;
@@ -777,7 +955,12 @@ async function saveReport(error, submit) {
   body.set("species_id", state.selectedSpecies.id);
   body.set("observed_on", state.draft.date);
   if (state.draft.diveId) body.set("dive_id", state.draft.diveId);
-  else body.set("site_id", state.draft.siteId);
+  else if (state.draft.siteId) body.set("site_id", state.draft.siteId);
+  if (state.draft.lat && state.draft.lng) {
+    body.set("lat", state.draft.lat);
+    body.set("lng", state.draft.lng);
+  }
+  if (state.draft.sea) body.set("sea", state.draft.sea);
   if (state.draft.count) body.set("count", state.draft.count);
   if (state.draft.depth) body.set("depth_m", state.draft.depth);
   body.set("method", state.draft.method);
@@ -1194,9 +1377,7 @@ function renderGuestReport(screen) {
   });
   form.append(field(t("what"), search), selected, hits);
   paintSelected(selected);
-  const site = siteOptions(state.draft.siteId);
-  site.addEventListener("change", () => { state.draft.siteId = site.value; });
-  form.append(field(t("where"), site));
+  appendPlacePicker(form);
   const date = el("input", { type: "date", value: state.draft.date });
   date.addEventListener("change", () => { state.draft.date = date.value; });
   const time = el("input", { type: "time", value: state.draft.startTime });
@@ -1253,6 +1434,7 @@ function render() {
   else renderReport(screen);
   renderConfirm();
   renderDiveSheet();
+  mountReportMap();
 }
 
 async function showTab(tab) {
@@ -1306,7 +1488,9 @@ function paintAtlas(hits) {
     hits.append(el("p", { class: "hint", text: t("atlasEmpty") }));
     return;
   }
-  state.atlasHits.forEach((species) => {
+  groupSpecies(state.atlasHits).forEach((group) => {
+    hits.append(el("h3", { class: "family-head", text: familyLabel(group) }));
+    group.species.forEach((species) => {
     const button = el("button", { type: "button", class: "atlas-card" });
     if (species.image_url) button.append(el("img", { src: species.image_url, alt: "" }));
     else button.append(el("div", { class: "ph", "aria-hidden": "true" }));
@@ -1315,6 +1499,7 @@ function paintAtlas(hits) {
     button.append(body);
     button.addEventListener("click", () => openHistory(species.id));
     hits.append(button);
+    });
   });
 }
 

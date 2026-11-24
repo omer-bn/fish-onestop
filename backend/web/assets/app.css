@@ -315,6 +315,8 @@ button.pill {
   cursor: pointer;
 }
 #map { height: min(62vh, 520px); min-height: 320px; border-radius: 18px; box-shadow: var(--shadow); }
+#report-map { height: min(52vh, 320px); min-height: 240px; border-radius: 16px; margin: 8px 0 4px; direction: ltr; }
+.family-head { grid-column: 1 / -1; margin: 14px 0 0; font-size: 15px; color: var(--deep); }
 .map-wrap { direction: ltr; }
 .empty { text-align: center; padding: 28px 12px; }
 .account dl { margin: 0; }
